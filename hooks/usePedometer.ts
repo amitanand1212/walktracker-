@@ -53,44 +53,45 @@ export function usePedometer() {
     (async () => {
       setStatus("checking");
 
-      let available = false;
+      // Subscribe optimistically. We don't gate on isAvailableAsync() because
+      // it can falsely report false in Expo Go on some devices, which would
+      // bounce the toggle back off. If addListener throws, we fall back.
       try {
-        available = await Accelerometer.isAvailableAsync();
+        Accelerometer.setUpdateInterval(UPDATE_MS);
+        const sub = Accelerometer.addListener(({ x, y, z }) => {
+          const mag = Math.sqrt(x * x + y * y + z * z);
+          const smooth =
+            smoothRef.current + SMOOTHING * (mag - smoothRef.current);
+          smoothRef.current = smooth;
+
+          const now = Date.now();
+          if (
+            armedRef.current &&
+            smooth > PEAK_THRESHOLD &&
+            now - lastStepRef.current > MIN_STEP_INTERVAL
+          ) {
+            armedRef.current = false;
+            lastStepRef.current = now;
+            addSteps(1);
+          } else if (smooth < RESET_THRESHOLD) {
+            armedRef.current = true; // re-arm once we're back near rest
+          }
+        });
+        if (cancelled) {
+          sub.remove();
+          return;
+        }
+        subRef.current = sub;
+        setStatus("tracking");
       } catch {
-        available = false;
-      }
-      if (cancelled) return;
-      if (!available) {
+        if (cancelled) return;
         setStatus("unavailable");
         setEnabled(false);
         Alert.alert(
           "No motion sensor",
-          "This device has no accelerometer, so live counting isn't available. Use the +steps buttons instead."
+          "Couldn't start the accelerometer on this device. Use the +steps buttons instead."
         );
-        return;
       }
-
-      Accelerometer.setUpdateInterval(UPDATE_MS);
-      subRef.current = Accelerometer.addListener(({ x, y, z }) => {
-        const mag = Math.sqrt(x * x + y * y + z * z);
-        const smooth =
-          smoothRef.current + SMOOTHING * (mag - smoothRef.current);
-        smoothRef.current = smooth;
-
-        const now = Date.now();
-        if (
-          armedRef.current &&
-          smooth > PEAK_THRESHOLD &&
-          now - lastStepRef.current > MIN_STEP_INTERVAL
-        ) {
-          armedRef.current = false;
-          lastStepRef.current = now;
-          addSteps(1);
-        } else if (smooth < RESET_THRESHOLD) {
-          armedRef.current = true; // re-arm once we're back near rest
-        }
-      });
-      setStatus("tracking");
     })();
 
     return () => {

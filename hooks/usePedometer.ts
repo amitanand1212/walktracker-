@@ -1,17 +1,27 @@
-import { Pedometer } from "expo-sensors";
+import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert, Linking, Platform } from "react-native";
+import { Alert } from "react-native";
 import { useWalkStore } from "@/store/useWalkStore";
 
-type Status = "idle" | "checking" | "unavailable" | "denied" | "tracking";
+type Status = "idle" | "checking" | "unavailable" | "tracking";
+
+// --- Step-detection tuning ---------------------------------------------------
+const UPDATE_MS = 80; // sampling interval (~12.5 Hz)
+const PEAK_THRESHOLD = 1.18; // acceleration magnitude (in g) to register a peak
+const RESET_THRESHOLD = 1.05; // must drop below this before the next peak counts
+const MIN_STEP_INTERVAL = 260; // ms between steps (caps cadence, kills jitter)
+const SMOOTHING = 0.4; // low-pass factor for the magnitude signal
 
 /**
- * Live step counting via the device pedometer.
+ * Live step counting built on the device accelerometer (expo-sensors).
  *
- * `Pedometer.watchStepCount` reports the cumulative step count since the
- * subscription started, so we track the last reading and feed only the
- * delta into the store. This combines cleanly with manual quick-adds and
- * avoids double-counting across app restarts (the watch restarts at 0).
+ * Why the accelerometer instead of `Pedometer`:
+ *   - Every phone has an accelerometer; many lack a dedicated step-counter.
+ *   - It needs no ACTIVITY_RECOGNITION permission, so it also works in Expo Go.
+ *
+ * Algorithm: low-pass the acceleration magnitude, then count a step each time
+ * the smoothed signal rises through PEAK_THRESHOLD (after having dropped back
+ * below RESET_THRESHOLD), debounced by MIN_STEP_INTERVAL.
  */
 export function usePedometer() {
   const addSteps = useWalkStore((s) => s.addSteps);
@@ -19,21 +29,22 @@ export function usePedometer() {
   const [enabled, setEnabled] = useState(false);
 
   const subRef = useRef<{ remove: () => void } | null>(null);
-  const lastRef = useRef(0);
+  const smoothRef = useRef(1);
+  const armedRef = useRef(true); // ready to register the next peak
+  const lastStepRef = useRef(0);
 
   const stop = useCallback(() => {
     subRef.current?.remove();
     subRef.current = null;
-    lastRef.current = 0;
+    smoothRef.current = 1;
+    armedRef.current = true;
+    lastStepRef.current = 0;
   }, []);
 
   useEffect(() => {
     if (!enabled) {
       stop();
-      // Keep error statuses visible; only clear a successful/in-progress one.
-      setStatus((prev) =>
-        prev === "tracking" || prev === "checking" ? "idle" : prev
-      );
+      setStatus((prev) => (prev === "unavailable" ? prev : "idle"));
       return;
     }
 
@@ -44,8 +55,8 @@ export function usePedometer() {
 
       let available = false;
       try {
-        available = await Pedometer.isAvailableAsync();
-      } catch (e) {
+        available = await Accelerometer.isAvailableAsync();
+      } catch {
         available = false;
       }
       if (cancelled) return;
@@ -53,53 +64,33 @@ export function usePedometer() {
         setStatus("unavailable");
         setEnabled(false);
         Alert.alert(
-          "No step sensor",
-          Platform.OS === "android"
-            ? "This device (or emulator) has no step-counter sensor, so live counting isn't available. Use the +steps buttons instead, or try on a real phone."
-            : "This device has no motion/step sensor available. Use the +steps buttons instead."
+          "No motion sensor",
+          "This device has no accelerometer, so live counting isn't available. Use the +steps buttons instead."
         );
         return;
       }
 
-      let granted = true;
-      try {
-        const perm = await Pedometer.requestPermissionsAsync();
-        granted = perm.granted;
-      } catch (e) {
-        granted = false;
-      }
-      if (cancelled) return;
-      if (!granted) {
-        setStatus("denied");
-        setEnabled(false);
-        Alert.alert(
-          "Permission needed",
-          "Walk Tracker needs motion / physical-activity permission to count steps automatically.",
-          [
-            { text: "Not now", style: "cancel" },
-            { text: "Open settings", onPress: () => Linking.openSettings() },
-          ]
-        );
-        return;
-      }
+      Accelerometer.setUpdateInterval(UPDATE_MS);
+      subRef.current = Accelerometer.addListener(({ x, y, z }) => {
+        const mag = Math.sqrt(x * x + y * y + z * z);
+        const smooth =
+          smoothRef.current + SMOOTHING * (mag - smoothRef.current);
+        smoothRef.current = smooth;
 
-      lastRef.current = 0;
-      try {
-        subRef.current = Pedometer.watchStepCount((result) => {
-          const total = result.steps ?? 0;
-          const delta = total - lastRef.current;
-          lastRef.current = total;
-          if (delta > 0) addSteps(delta);
-        });
-        setStatus("tracking");
-      } catch (e) {
-        setStatus("unavailable");
-        setEnabled(false);
-        Alert.alert(
-          "Couldn't start tracking",
-          "The step sensor couldn't be started on this device. You can still log steps manually."
-        );
-      }
+        const now = Date.now();
+        if (
+          armedRef.current &&
+          smooth > PEAK_THRESHOLD &&
+          now - lastStepRef.current > MIN_STEP_INTERVAL
+        ) {
+          armedRef.current = false;
+          lastStepRef.current = now;
+          addSteps(1);
+        } else if (smooth < RESET_THRESHOLD) {
+          armedRef.current = true; // re-arm once we're back near rest
+        }
+      });
+      setStatus("tracking");
     })();
 
     return () => {

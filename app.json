@@ -20,9 +20,7 @@
         "backgroundColor": "#0EA5E9"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": [
-        "android.permission.ACTIVITY_RECOGNITION"
-      ]
+      "permissions": []
     },
     "web": {
       "bundler": "metro",

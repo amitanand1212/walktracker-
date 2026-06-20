@@ -161,15 +161,13 @@ export default function Home() {
 function statusText(status: ReturnType<typeof usePedometer>["status"]) {
   switch (status) {
     case "tracking":
-      return "● Counting your steps live";
+      return "● Counting your steps live — keep walking";
     case "checking":
-      return "Starting sensor…";
+      return "Starting motion sensor…";
     case "unavailable":
-      return "No step sensor on this device";
-    case "denied":
-      return "Motion permission denied";
+      return "No motion sensor on this device";
     default:
-      return "Turn on to count steps with your phone's sensor";
+      return "Turn on to count steps with your phone's motion sensor";
   }
 }
 

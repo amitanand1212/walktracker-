@@ -21,9 +21,7 @@ import { usePedometer } from "@/hooks/usePedometer";
 import { lastSevenDays, todayKey, useWalkStore } from "@/store/useWalkStore";
 import { BG_GRADIENT, C, GOAL_GRADIENT, STEP_LENGTH_M } from "@/theme";
 
-const USER_NAME = "Manisha";
-
-export type Tab = "home" | "history" | "insights" | "settings";
+export type Tab = "home" | "history" | "settings";
 
 export default function Home() {
   const insets = useSafeAreaInsets();
@@ -44,7 +42,6 @@ export default function Home() {
   const distanceKm = (steps * STEP_LENGTH_M) / 1000;
   const calories = Math.round(steps * 0.04);
   const activeMin = Math.round(steps / 110);
-  const floors = Math.round(steps / 2000);
 
   const week = useMemo(() => lastSevenDays(logs), [logs]);
   const weekSteps = week.map((d) => d.steps);
@@ -79,9 +76,7 @@ export default function Home() {
             showsVerticalScrollIndicator={false}
           >
             {/* Greeting */}
-            <Text style={styles.greeting}>
-              {greeting}, {USER_NAME} 👋
-            </Text>
+            <Text style={styles.greeting}>{greeting} 👋</Text>
             <Text style={styles.greetingSub}>
               Let&apos;s walk towards a healthier you ❤️
             </Text>
@@ -145,15 +140,6 @@ export default function Home() {
                 data={spark([2, 3, 4, 5, 5, 6, 7])}
                 lineColor={C.green}
               />
-              <StatCard
-                icon={<Ionicons name="layers" size={20} color={C.blue} />}
-                tint="rgba(59,130,246,0.12)"
-                label="Floors"
-                value={`${floors}`}
-                unit="floors"
-                data={spark([3, 4, 3, 5, 4, 6, 5])}
-                lineColor={C.blue}
-              />
             </View>
 
             {/* Daily goal progress */}
@@ -206,7 +192,7 @@ export default function Home() {
             {/* Tracking + quick actions (functional controls) */}
             <View style={styles.toggleCard}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.toggleTitle}>Auto step tracking</Text>
+                <Text style={styles.toggleTitle}>Live step counter</Text>
                 <Text style={styles.toggleSub}>
                   {statusText(status, background)}
                 </Text>
@@ -287,8 +273,6 @@ export default function Home() {
         />
       )}
 
-      {tab === "insights" && <ComingSoon topInset={insets.top} />}
-
       {/* Bottom tab bar */}
       <View style={[styles.tabBar, { paddingBottom: insets.bottom + 8 }]}>
         <TabItem
@@ -304,13 +288,6 @@ export default function Home() {
           onPress={setTab}
           icon="stats-chart"
           label="History"
-        />
-        <TabItem
-          tab="insights"
-          active={tab}
-          onPress={setTab}
-          icon="pie-chart"
-          label="Insights"
         />
         <TabItem
           tab="settings"
@@ -382,18 +359,6 @@ function TabItem({
       <Ionicons name={icon} size={22} color={color} />
       <Text style={[styles.tabLabel, { color }]}>{label}</Text>
     </Pressable>
-  );
-}
-
-function ComingSoon({ topInset }: { topInset: number }) {
-  return (
-    <View style={[styles.flexCenter, { paddingTop: topInset }]}>
-      <View style={styles.comingIcon}>
-        <Ionicons name="pie-chart" size={36} color={C.purple} />
-      </View>
-      <Text style={styles.comingTitle}>Insights</Text>
-      <Text style={styles.comingSub}>Coming soon</Text>
-    </View>
   );
 }
 
@@ -746,25 +711,4 @@ const styles = StyleSheet.create({
   },
   tabItem: { flex: 1, alignItems: "center", gap: 4 },
   tabLabel: { fontFamily: "Inter_600SemiBold", fontSize: 11 },
-
-  comingIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "rgba(124,58,237,0.1)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-  comingTitle: {
-    color: C.text,
-    fontFamily: "Inter_700Bold",
-    fontSize: 22,
-  },
-  comingSub: {
-    color: C.subText,
-    fontFamily: "Inter_400Regular",
-    fontSize: 14,
-    marginTop: 4,
-  },
 });

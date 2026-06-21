@@ -15,6 +15,7 @@ import android.hardware.SensorManager
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import java.util.Locale
 
 /**
  * Foreground service that keeps the process alive so the hardware step counter
@@ -101,10 +102,19 @@ class StepCounterService : Service(), SensorEventListener {
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
       )
     }
+    val calories = Math.round(steps * 0.04).toInt()
+    val distanceKm = steps * 0.762 / 1000.0
+    val title = String.format(Locale.US, "👟 %,d steps today", steps)
+    val text = String.format(
+      Locale.US, "🔥 %d kcal   ·   📍 %.2f km", calories, distanceKm
+    )
     return NotificationCompat.Builder(this, CHANNEL_ID)
-      .setContentTitle("Walk Tracker")
-      .setContentText("$steps steps today — keep walking 👟")
-      .setSmallIcon(applicationInfo.icon)
+      .setContentTitle(title)
+      .setContentText(text)
+      // Notification small icons must be a white/transparent silhouette; the
+      // colourful launcher icon would render as a solid white square.
+      .setSmallIcon(R.drawable.ic_step_notification)
+      .setColor(0xFF7C3AED.toInt())
       .setOngoing(true)
       .setOnlyAlertOnce(true)
       .setContentIntent(pi)

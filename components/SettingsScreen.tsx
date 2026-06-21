@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   Alert,
   Image,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,14 @@ import {
   Text,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  ABOUT_BLOCKS,
+  ABOUT_TITLE,
+  PRIVACY_BLOCKS,
+  PRIVACY_TITLE,
+  PRIVACY_UPDATED,
+} from "@/legal/content";
 import { C, cardShadow, GOAL_GRADIENT } from "@/theme";
 
 type Status = "idle" | "checking" | "unavailable" | "tracking";
@@ -42,6 +51,7 @@ export default function SettingsScreen({
 }: Props) {
   const [reminders, setReminders] = useState(true);
   const [sound, setSound] = useState(false);
+  const [legal, setLegal] = useState<"privacy" | "about" | null>(null);
   const version = Constants.expoConfig?.version ?? "1.0.0";
 
   const bumpGoal = (delta: number) => {
@@ -67,6 +77,7 @@ export default function SettingsScreen({
   };
 
   return (
+    <>
     <ScrollView
       style={styles.fill}
       contentContainerStyle={{
@@ -94,10 +105,9 @@ export default function SettingsScreen({
           />
         </LinearGradient>
         <View style={{ flex: 1 }}>
-          <Text style={styles.profileName}>Manisha</Text>
-          <Text style={styles.profileSub}>Keep walking strong 💪</Text>
+          <Text style={styles.profileName}>Keep walking strong 💪</Text>
+          <Text style={styles.profileSub}>Every step counts ❤️</Text>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={C.muted} />
       </View>
 
       {/* Daily goal */}
@@ -151,7 +161,7 @@ export default function SettingsScreen({
           icon="walk"
           tint="rgba(124,58,237,0.12)"
           iconColor={C.purple}
-          label="Auto step tracking"
+          label="Live step counter"
           sub={statusText(status, background)}
         >
           <Switch
@@ -202,8 +212,8 @@ export default function SettingsScreen({
         </Row>
       </View>
 
-      {/* Data + About */}
-      <Text style={styles.section}>Data & About</Text>
+      {/* Data */}
+      <Text style={styles.section}>Data</Text>
       <View style={styles.card}>
         <Pressable
           onPress={confirmReset}
@@ -219,10 +229,44 @@ export default function SettingsScreen({
             <Ionicons name="chevron-forward" size={18} color={C.muted} />
           </Row>
         </Pressable>
+      </View>
+
+      {/* About & Legal */}
+      <Text style={styles.section}>About & Legal</Text>
+      <View style={styles.card}>
+        <Pressable
+          onPress={() => setLegal("about")}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Row
+            icon="information-circle"
+            tint="rgba(59,130,246,0.12)"
+            iconColor={C.blue}
+            label="About Walk Tracker"
+            sub="What this app does"
+          >
+            <Ionicons name="chevron-forward" size={18} color={C.muted} />
+          </Row>
+        </Pressable>
+        <Pressable
+          onPress={() => setLegal("privacy")}
+          style={({ pressed }) => pressed && styles.pressed}
+        >
+          <Row
+            icon="shield-checkmark"
+            tint="rgba(34,197,94,0.12)"
+            iconColor={C.green}
+            label="Privacy Policy"
+            sub="How your data is handled"
+            border
+          >
+            <Ionicons name="chevron-forward" size={18} color={C.muted} />
+          </Row>
+        </Pressable>
         <Row
-          icon="information-circle"
-          tint="rgba(59,130,246,0.12)"
-          iconColor={C.blue}
+          icon="pricetag"
+          tint="rgba(124,58,237,0.12)"
+          iconColor={C.purple}
           label="Version"
           sub="Walk Tracker"
           border
@@ -233,6 +277,56 @@ export default function SettingsScreen({
 
       <Text style={styles.footer}>Made for a healthier you ❤️</Text>
     </ScrollView>
+    <LegalModal kind={legal} onClose={() => setLegal(null)} />
+    </>
+  );
+}
+
+function LegalModal({
+  kind,
+  onClose,
+}: {
+  kind: "privacy" | "about" | null;
+  onClose: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const isPrivacy = kind === "privacy";
+  const title = isPrivacy ? PRIVACY_TITLE : ABOUT_TITLE;
+  const blocks = isPrivacy ? PRIVACY_BLOCKS : ABOUT_BLOCKS;
+  return (
+    <Modal
+      visible={kind !== null}
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={[styles.modalRoot, { paddingTop: insets.top }]}>
+        <View style={styles.modalHeader}>
+          <Text style={styles.modalTitle}>{title}</Text>
+          <Pressable onPress={onClose} hitSlop={12} style={styles.modalClose}>
+            <Ionicons name="close" size={22} color={C.text} />
+          </Pressable>
+        </View>
+        <ScrollView
+          contentContainerStyle={{
+            padding: 20,
+            paddingBottom: insets.bottom + 32,
+          }}
+          showsVerticalScrollIndicator={false}
+        >
+          {isPrivacy && (
+            <Text style={styles.modalUpdated}>{PRIVACY_UPDATED}</Text>
+          )}
+          {blocks.map((b, i) => (
+            <View key={i}>
+              {b.heading ? (
+                <Text style={styles.modalHeading}>{b.heading}</Text>
+              ) : null}
+              <Text style={styles.modalParagraph}>{b.body}</Text>
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+    </Modal>
   );
 }
 
@@ -418,5 +512,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: "center",
     marginTop: 24,
+  },
+
+  modalRoot: { flex: 1, backgroundColor: "#F7F8FC" },
+  modalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(15,23,42,0.08)",
+    backgroundColor: "#fff",
+  },
+  modalTitle: { color: C.text, fontFamily: "Inter_700Bold", fontSize: 18 },
+  modalClose: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "rgba(15,23,42,0.05)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  modalUpdated: {
+    color: C.muted,
+    fontFamily: "Inter_400Regular",
+    fontSize: 12,
+    marginBottom: 12,
+  },
+  modalHeading: {
+    color: C.purple,
+    fontFamily: "Inter_600SemiBold",
+    fontSize: 15,
+    marginTop: 18,
+    marginBottom: 4,
+  },
+  modalParagraph: {
+    color: C.text,
+    fontFamily: "Inter_400Regular",
+    fontSize: 14,
+    lineHeight: 21,
   },
 });

@@ -31,12 +31,15 @@ const USE_SERVICE = StepCounter.isAvailable();
 export function usePedometer() {
   const addSteps = useWalkStore((s) => s.addSteps);
   const setSteps = useWalkStore((s) => s.setSteps);
+  // Toggle state lives in the store so it persists and defaults to on.
+  const enabled = useWalkStore((s) => s.tracking);
+  const setEnabled = useWalkStore((s) => s.setTracking);
+  const hydrated = useWalkStore((s) => s.hydrated);
   const [status, setStatus] = useState<Status>("idle");
-  const [enabled, setEnabled] = useState(false);
 
   /* ----------------------- native foreground service ---------------------- */
   useEffect(() => {
-    if (!USE_SERVICE) return;
+    if (!USE_SERVICE || !hydrated) return;
 
     if (!enabled) {
       StepCounter.stop().catch(() => {});
@@ -90,7 +93,7 @@ export function usePedometer() {
       stepSub?.remove();
       appSub?.remove();
     };
-  }, [enabled, setSteps]);
+  }, [enabled, hydrated, setSteps]);
 
   /* ------------------------- accelerometer fallback ----------------------- */
   const subRef = useRef<{ remove: () => void } | null>(null);
@@ -107,7 +110,7 @@ export function usePedometer() {
   }, []);
 
   useEffect(() => {
-    if (USE_SERVICE) return;
+    if (USE_SERVICE || !hydrated) return;
 
     if (!enabled) {
       stopAccel();
@@ -161,7 +164,7 @@ export function usePedometer() {
       cancelled = true;
       stopAccel();
     };
-  }, [enabled, addSteps, stopAccel]);
+  }, [enabled, hydrated, addSteps, stopAccel]);
 
   useEffect(() => stopAccel, [stopAccel]);
 

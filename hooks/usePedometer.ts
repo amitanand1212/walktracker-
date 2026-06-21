@@ -1,39 +1,104 @@
 import { Accelerometer } from "expo-sensors";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, AppState, PermissionsAndroid, Platform } from "react-native";
+import { StepCounter } from "@/modules/step-counter";
 import { useWalkStore } from "@/store/useWalkStore";
 
 type Status = "idle" | "checking" | "unavailable" | "tracking";
 
-// --- Step-detection tuning ---------------------------------------------------
+// --- Accelerometer fallback tuning (Expo Go / no hardware step counter) ------
 const UPDATE_MS = 80; // sampling interval (~12.5 Hz)
 const PEAK_THRESHOLD = 1.18; // acceleration magnitude (in g) to register a peak
 const RESET_THRESHOLD = 1.05; // must drop below this before the next peak counts
 const MIN_STEP_INTERVAL = 260; // ms between steps (caps cadence, kills jitter)
 const SMOOTHING = 0.4; // low-pass factor for the magnitude signal
 
+// Decided once per launch: a dev/prod build on a phone with a step-counter
+// sensor uses the native foreground service; everything else (Expo Go, iOS,
+// emulators without the sensor) uses the accelerometer.
+const USE_SERVICE = StepCounter.isAvailable();
+
 /**
- * Live step counting built on the device accelerometer (expo-sensors).
+ * Live step counting.
  *
- * Why the accelerometer instead of `Pedometer`:
- *   - Every phone has an accelerometer; many lack a dedicated step-counter.
- *   - It needs no ACTIVITY_RECOGNITION permission, so it also works in Expo Go.
+ * Preferred path (USE_SERVICE): an Android foreground service reads the
+ * hardware step counter and keeps running with the app backgrounded. The store
+ * is kept in sync from the service's absolute "steps today" value.
  *
- * Algorithm: low-pass the acceleration magnitude, then count a step each time
- * the smoothed signal rises through PEAK_THRESHOLD (after having dropped back
- * below RESET_THRESHOLD), debounced by MIN_STEP_INTERVAL.
+ * Fallback path: low-pass the accelerometer magnitude and count peaks. Works in
+ * Expo Go without permissions, but only while the app is in the foreground.
  */
 export function usePedometer() {
   const addSteps = useWalkStore((s) => s.addSteps);
+  const setSteps = useWalkStore((s) => s.setSteps);
   const [status, setStatus] = useState<Status>("idle");
   const [enabled, setEnabled] = useState(false);
 
+  /* ----------------------- native foreground service ---------------------- */
+  useEffect(() => {
+    if (!USE_SERVICE) return;
+
+    if (!enabled) {
+      StepCounter.stop().catch(() => {});
+      setStatus((prev) => (prev === "unavailable" ? prev : "idle"));
+      return;
+    }
+
+    let cancelled = false;
+    let stepSub: { remove: () => void } | null = null;
+    let appSub: { remove: () => void } | null = null;
+
+    const sync = async () => {
+      const s = await StepCounter.getTodaySteps();
+      if (!cancelled) setSteps(s);
+    };
+
+    (async () => {
+      setStatus("checking");
+
+      const granted = await requestAndroidPermissions();
+      if (cancelled) return;
+      if (!granted) {
+        setEnabled(false);
+        setStatus("idle");
+        Alert.alert(
+          "Permission needed",
+          "Allow physical activity access so Walk Tracker can count your steps in the background."
+        );
+        return;
+      }
+
+      const started = await StepCounter.start();
+      if (cancelled) return;
+      if (!started) {
+        setEnabled(false);
+        setStatus("unavailable");
+        return;
+      }
+
+      setStatus("tracking");
+      await sync();
+      stepSub = StepCounter.addListener((e) => setSteps(e.steps));
+      // Re-sync whenever the app returns to the foreground.
+      appSub = AppState.addEventListener("change", (state) => {
+        if (state === "active") sync();
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+      stepSub?.remove();
+      appSub?.remove();
+    };
+  }, [enabled, setSteps]);
+
+  /* ------------------------- accelerometer fallback ----------------------- */
   const subRef = useRef<{ remove: () => void } | null>(null);
   const smoothRef = useRef(1);
-  const armedRef = useRef(true); // ready to register the next peak
+  const armedRef = useRef(true);
   const lastStepRef = useRef(0);
 
-  const stop = useCallback(() => {
+  const stopAccel = useCallback(() => {
     subRef.current?.remove();
     subRef.current = null;
     smoothRef.current = 1;
@@ -42,8 +107,10 @@ export function usePedometer() {
   }, []);
 
   useEffect(() => {
+    if (USE_SERVICE) return;
+
     if (!enabled) {
-      stop();
+      stopAccel();
       setStatus((prev) => (prev === "unavailable" ? prev : "idle"));
       return;
     }
@@ -52,10 +119,6 @@ export function usePedometer() {
 
     (async () => {
       setStatus("checking");
-
-      // Subscribe optimistically. We don't gate on isAvailableAsync() because
-      // it can falsely report false in Expo Go on some devices, which would
-      // bounce the toggle back off. If addListener throws, we fall back.
       try {
         Accelerometer.setUpdateInterval(UPDATE_MS);
         const sub = Accelerometer.addListener(({ x, y, z }) => {
@@ -74,7 +137,7 @@ export function usePedometer() {
             lastStepRef.current = now;
             addSteps(1);
           } else if (smooth < RESET_THRESHOLD) {
-            armedRef.current = true; // re-arm once we're back near rest
+            armedRef.current = true;
           }
         });
         if (cancelled) {
@@ -96,12 +159,30 @@ export function usePedometer() {
 
     return () => {
       cancelled = true;
-      stop();
+      stopAccel();
     };
-  }, [enabled, addSteps, stop]);
+  }, [enabled, addSteps, stopAccel]);
 
-  // Tear down on unmount.
-  useEffect(() => stop, [stop]);
+  useEffect(() => stopAccel, [stopAccel]);
 
-  return { status, enabled, setEnabled };
+  // `background` is true when the native foreground service is driving counting
+  // (works with the app closed); false on the foreground-only accelerometer.
+  return { status, enabled, setEnabled, background: USE_SERVICE };
+}
+
+async function requestAndroidPermissions(): Promise<boolean> {
+  if (Platform.OS !== "android") return false;
+  try {
+    const perms: string[] = [PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION];
+    if (PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS) {
+      perms.push(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
+    }
+    const res = await PermissionsAndroid.requestMultiple(perms as any);
+    return (
+      res[PermissionsAndroid.PERMISSIONS.ACTIVITY_RECOGNITION] ===
+      PermissionsAndroid.RESULTS.GRANTED
+    );
+  } catch {
+    return false;
+  }
 }

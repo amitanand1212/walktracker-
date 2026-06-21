@@ -20,7 +20,12 @@
         "backgroundColor": "#0EA5E9"
       },
       "edgeToEdgeEnabled": true,
-      "permissions": []
+      "permissions": [
+        "ACTIVITY_RECOGNITION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_HEALTH",
+        "POST_NOTIFICATIONS"
+      ]
     },
     "web": {
       "bundler": "metro",

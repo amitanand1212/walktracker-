@@ -13,6 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import AdBanner from "@/components/AdBanner";
 import HistoryScreen from "@/components/HistoryScreen";
 import SettingsScreen from "@/components/SettingsScreen";
 import Sparkline from "@/components/Sparkline";
@@ -272,6 +273,9 @@ export default function Home() {
           topInset={insets.top}
         />
       )}
+
+      {/* Banner ad (sits above the tab bar; collapses until an ad loads) */}
+      <AdBanner />
 
       {/* Bottom tab bar */}
       <View style={[styles.tabBar, { paddingBottom: insets.bottom + 8 }]}>

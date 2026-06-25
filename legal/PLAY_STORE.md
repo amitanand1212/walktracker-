@@ -1,8 +1,9 @@
 # Google Play submission — privacy & data checklist
 
 Everything Play Store needs around privacy/data for **Walk Tracker**, plus the
-exact answers to give. The app stores everything **on-device only** (no account,
-no network, no analytics, no ads), which keeps all of this simple.
+exact answers to give. All step/activity data stays **on-device only** (no
+account, no network, no analytics). The app **does show Google AdMob banner
+ads**, so the advertising answers below reflect that.
 
 ---
 
@@ -22,19 +23,23 @@ Easiest free hosting options:
 
 ## 2. Data safety form (Play Console → App content → Data safety)
 
-Because all step/activity data is **processed and stored only on the device** and
-never leaves it, under Google's definitions this is **not "collection" or
-"sharing"**.
+Step/activity data stays **only on the device**. But the app uses **Google
+AdMob**, which collects the **Advertising ID** and some device/usage info to
+serve ads — under Google's definitions this **is** collection + sharing.
 
 Recommended answers:
-- **Does your app collect or share any of the required user data types?** → **No**
-  - Rationale: data is only on-device, never transmitted off the device.
-- **Does your app use encryption in transit?** → N/A (no data leaves the device).
+- **Does your app collect or share any of the required user data types?** → **Yes**
+  - Data type: **Device or other IDs** (Advertising ID), collected & shared by
+    Google AdMob for **Advertising or marketing**.
+  - Your step/distance/activity data is **not** collected (stays on-device).
+- **Is data encrypted in transit?** → **Yes** (AdMob uses HTTPS).
 - **Do you provide a way for users to request data deletion?** → **Yes** — in-app
-  Settings → Reset progress (and uninstalling removes all data).
+  Settings → Reset progress (and uninstalling removes all on-device data).
 
-> ⚠️ If you ever add analytics, crash reporting, ads, cloud sync, or any network
-> call that sends user/device data off the device, you MUST revisit this form.
+> ⚠️ The AdMob plugin adds the `com.google.android.gms.permission.AD_ID`
+> permission. In Play Console this triggers the **Advertising ID** declaration —
+> answer that the app uses Advertising ID for **advertising**.
+> If you later add analytics, crash reporting, or cloud sync, revisit this form.
 
 ---
 
@@ -59,10 +64,10 @@ In **Play Console → App content**, you may be asked to justify:
 - **App category:** Health & Fitness
 - **Short description (≤80 chars):** "Count your daily steps, distance & calories — all kept private on your phone."
 - **Full description:** see `ABOUT_BLOCKS` in `legal/content.ts` for accurate copy.
-- **Content rating:** complete the questionnaire → expect **Everyone** (no ads,
-  no user-generated content, no data collection).
+- **Content rating:** complete the questionnaire → answer **Yes** to "contains
+  ads"; still expect around **Everyone / PEGI 3** for a simple step tracker.
 - **Target audience:** 13+ (the app is not directed at children).
-- **Ads:** declare **No ads**.
+- **Ads:** declare **Contains ads = Yes** (Google AdMob banner).
 - **App access:** all features available without special access/login.
 
 ---

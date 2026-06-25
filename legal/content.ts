@@ -5,7 +5,7 @@ export type LegalBlock = { heading?: string; body: string };
 
 export const SUPPORT_EMAIL = "amitanand1212@gmail.com";
 export const APP_NAME = "Walk Tracker";
-export const PRIVACY_UPDATED = "Last updated: 21 June 2026";
+export const PRIVACY_UPDATED = "Last updated: 25 June 2026";
 
 export const ABOUT_TITLE = "About Walk Tracker";
 export const ABOUT_BLOCKS: LegalBlock[] = [
@@ -47,9 +47,14 @@ export const PRIVACY_BLOCKS: LegalBlock[] = [
       "• Physical activity (Activity Recognition): to count steps using the device's step sensor.\n• Notifications: to show an ongoing notification while the live step counter is on.\n• Foreground service: to keep counting steps while the app is in the background.",
   },
   {
+    heading: "Advertising",
+    body:
+      "The app shows ads provided by Google AdMob. To serve ads, AdMob may collect device and usage information, including your device's advertising identifier (Advertising ID), as described in Google's privacy policy (https://policies.google.com/privacy). Your step data is never shared for advertising. You can reset or limit your Advertising ID in your device settings.",
+  },
+  {
     heading: "Data sharing",
     body:
-      "We do not collect, sell, or share any personal data. The app contains no analytics, no advertising, and no third-party SDKs that collect data.",
+      "We do not sell your data. Apart from the advertising data handled by Google AdMob (described above), the app contains no analytics and no other third-party SDKs that collect data. Your step, distance, and activity data stays on your device.",
   },
   {
     heading: "Data retention & deletion",

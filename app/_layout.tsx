@@ -9,6 +9,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { initAds } from "@/ads/init";
 import { useWalkStore } from "@/store/useWalkStore";
 
 export default function RootLayout() {
@@ -22,6 +23,8 @@ export default function RootLayout() {
 
   useEffect(() => {
     hydrate();
+    // Gather UMP consent (EEA/UK) then initialize the Mobile Ads SDK.
+    initAds();
   }, [hydrate]);
 
   if (!fontsLoaded) return null;

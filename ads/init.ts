@@ -1,4 +1,4 @@
-import mobileAds, { AdsConsent } from "react-native-google-mobile-ads";
+import { adsAvailable } from "@/ads/env";
 
 /**
  * Initialize ads in a policy-compliant way:
@@ -8,18 +8,24 @@ import mobileAds, { AdsConsent } from "react-native-google-mobile-ads";
  *      (Privacy & messaging), this resolves as a no-op for everyone else.
  *   2. Initialize the Mobile Ads SDK once consent is resolved.
  *
- * Safe to call on every launch; unavailable / no-op in Expo Go, so it's guarded.
+ * Skipped entirely in Expo Go (native module unavailable). The library is
+ * required lazily so it is never imported there.
  */
 export async function initAds(): Promise<void> {
+  if (!adsAvailable) return;
+
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { default: mobileAds, AdsConsent } = require("react-native-google-mobile-ads");
+
   try {
     await AdsConsent.gatherConsent();
   } catch {
-    // No consent form configured, or running where UMP is unavailable.
+    // No consent form configured, or UMP unavailable.
   }
 
   try {
     await mobileAds().initialize();
   } catch {
-    // Native module unavailable (e.g. Expo Go).
+    // SDK init failed; ads simply won't show.
   }
 }

@@ -73,6 +73,7 @@ export const PRIVACY_BLOCKS: LegalBlock[] = [
   },
   {
     heading: "Contact",
-    body: `If you have any questions about this policy, contact us at ${SUPPORT_EMAIL}.`,
+    body:
+      "If you have any questions about this policy, contact us at:\n\nLush Privacy Team\nEmail: hello@lush-app.com\nAddress: Hitech City, Hyderabad, Telangana 500085",
   },
 ];

@@ -10,14 +10,15 @@ ads**, so the advertising answers below reflect that.
 ## 1. Privacy policy URL (required)
 
 Play requires a **publicly reachable URL** because the app uses the sensitive
-`ACTIVITY_RECOGNITION` permission. Host `legal/privacy-policy.html` and paste the
-URL in **Play Console → App content → Privacy policy**.
+`ACTIVITY_RECOGNITION` permission.
 
-Easiest free hosting options:
-- **GitHub Pages**: push the repo, enable Pages, the file is served at
-  `https://<user>.github.io/<repo>/legal/privacy-policy.html`.
-- **Netlify / Vercel / Cloudflare Pages**: drag-drop the `legal/` folder.
-- Any static host. The same text is shown in-app (Settings → Privacy Policy).
+**Hosted for free via GitHub Pages** by `.github/workflows/pages.yml` (auto-enables
+Pages and deploys the `legal/` folder on every push to `main`). Public URL:
+
+> `https://amitanand1212.github.io/walktracker-/privacy-policy.html`
+
+Paste that in **Play Console → App content → Privacy policy**. The same text is
+shown in-app (Settings → Privacy Policy).
 
 ---
 
